@@ -1,0 +1,31 @@
+{
+  "name": "meet-notify",
+  "version": "1.0.0",
+  "description": "A Rec0-bot plugin which notify start/end of meeting on Jitsi Meet.",
+  "filter_prefixes": [
+    "sindoi"
+  ],
+  "scheduled_events": [
+    {
+      "time": "0 * * * * *",
+      "event": "check-room-api"
+    }
+  ],
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc index.ts",
+    "clean": "rm -rf *.js node_modules",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "clvs7",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@log4js-node/log4js-api": "^1.0.2",
+    "node-fetch": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^13.7.7",
+    "@types/node-fetch": "^2.5.5",
+    "typescript": "^3.8.3"
+  }
+}
