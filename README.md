@@ -24,6 +24,7 @@ If you use this plugin outside of Japanese environment, please replace texts in 
 
 ## Author
 clvs7 (Arisaka Mayuki)
+shiba44
 
 ## License
 Apache License 2.0
