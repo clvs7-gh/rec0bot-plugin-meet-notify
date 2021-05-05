@@ -23,7 +23,8 @@ Currently, i18n feature is not supported (texts are hard-coded).
 If you use this plugin outside of Japanese environment, please replace texts in this plugin script with your one.
 
 ## Author
-clvs7 (Arisaka Mayuki)
+clvs7 (Arisaka Mayuki)  
+shiba44
 
 ## License
 Apache License 2.0

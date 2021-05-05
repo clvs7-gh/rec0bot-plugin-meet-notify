@@ -3,42 +3,56 @@ import fetch from 'node-fetch';
 import * as path from 'path';
 import { BotProxy } from './bot-proxy.interface';
 import { MessageContext } from './message-context.interface';
-
 let mBot: BotProxy;
+
 let logger: Logger;
 let metadata: { [key: string]: string };
 
-const mMeetingStatus: { [url: string]: boolean } = {};
+const mMeetingStatuses: { [url: string]: boolean } = {};
+
+const mMeetingMemberNames: { [url: string]: string[] } = {};
+
+const mMeetingSlackThreads: { [url: string]: string } = {};
 
 const NOTIFY_CHANNEL: string = process.env.REC0_ENV_MEET_NOTIFY_CHANNEL || 'meeting-notify';
 const ROOM_API_URLS: string[] =
     (process.env.REC0_ENV_MEET_NOTIFY_ROOM_API_URLS || 'https://meet.jitsi/room?room=example').split(',').map(v => v.trim());
-ROOM_API_URLS.forEach(v => mMeetingStatus[v] = false);
+
+ROOM_API_URLS.forEach(v => {
+    mMeetingStatuses[v] = false;
+    mMeetingMemberNames[v] = [];
+    mMeetingSlackThreads[v] = "";
+});
+
 const REC0_ENV_MEET_NOTIFY_BASE_WEB_URL: string = process.env.REC0_ENV_MEET_NOTIFY_BASE_WEB_URL || 'https://meet.jitsi/';
 
-const checkRoom = async (apiUrl: string): Promise<[boolean, string?]> => {
+const checkRoom = async (apiUrl: string): Promise<[boolean, string[]]> => {
     const res = await fetch(apiUrl);
     if (res.ok) {
-        const repName = (await res.json())[0].display_name;
-        return [true, repName];
+        const memberNames: string[] = [];
+        for (const v of (await res.json())){
+          memberNames.push(v.display_name)
+        }
+        return [true, memberNames];
     }
 
-    return [false, void 0];
+    return [false, []];
 };
 
 const run = async () => {
     for ( const roomUrl of ROOM_API_URLS ) {
         let _isHeld = false;
-        let repName: string|undefined;
+        let memberNames: string[];
         try {
-            [_isHeld, repName] = await checkRoom(roomUrl);
+            [_isHeld, memberNames] = await checkRoom(roomUrl);
         } catch (e) {
             logger.warn('Failed to access room API: ', e);
             continue;
         }
 
-        if (_isHeld !== mMeetingStatus[roomUrl]) {
-            mMeetingStatus[roomUrl] = _isHeld;
+        if (_isHeld !== mMeetingStatuses[roomUrl]) {
+            mMeetingStatuses[roomUrl] = _isHeld;
+            const repName = memberNames[0];
             const roomName = (new URL(roomUrl)).searchParams.get('room') || '';
             const webUrl = new URL(roomName, REC0_ENV_MEET_NOTIFY_BASE_WEB_URL);
             const onBeginText = roomName ?
@@ -47,7 +61,30 @@ const run = async () => {
             const onEndText = roomName ?
                 `${roomName} のミーティングが終了しました` :
                 `ミーティングが終了しました`;
-            await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText);
+
+            mMeetingSlackThreads[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText)).ts;
+        }
+
+        if ( _isHeld === true ) {
+            const options = { "thread_ts" : mMeetingSlackThreads[roomUrl] };
+
+            for (const m of mMeetingMemberNames[roomUrl]){
+                const isExit = (memberNames.indexOf(m) === -1);
+                if ( isExit ) {
+                    const onExitText = `${m} さんが退出しました`;
+                    await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onExitText, options);
+                }
+            }
+
+            for (const m of memberNames){
+                const isEntry = (mMeetingMemberNames[roomUrl].indexOf(m) === -1);
+                if ( isEntry ) {
+                    const onEntryText = `${m} さんが参加しました`;
+                    await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onEntryText, options);
+                }
+            }
+
+            mMeetingMemberNames[roomUrl] = Array.from(memberNames);
         }
     }
 };
