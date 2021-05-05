@@ -3,8 +3,8 @@ import fetch from 'node-fetch';
 import * as path from 'path';
 import { BotProxy } from './bot-proxy.interface';
 import { MessageContext } from './message-context.interface';
-
 let mBot: BotProxy;
+
 let logger: Logger;
 let metadata: { [key: string]: string };
 
@@ -12,12 +12,15 @@ const mMeetingStatus: { [url: string]: boolean } = {};
 
 const mMeetingMember: { [url: string]: string[] } = {};
 
+const mMeetingSlackThread: { [url: string]: string } = {};
+
 const NOTIFY_CHANNEL: string = process.env.REC0_ENV_MEET_NOTIFY_CHANNEL || 'meeting-notify';
 const ROOM_API_URLS: string[] =
     (process.env.REC0_ENV_MEET_NOTIFY_ROOM_API_URLS || 'https://meet.jitsi/room?room=example').split(',').map(v => v.trim());
 
 ROOM_API_URLS.forEach(v => mMeetingStatus[v] = false);
 ROOM_API_URLS.forEach(v => mMeetingMember[v] = []);
+ROOM_API_URLS.forEach(v => mMeetingSlackThread[v] = "");
 
 const REC0_ENV_MEET_NOTIFY_BASE_WEB_URL: string = process.env.REC0_ENV_MEET_NOTIFY_BASE_WEB_URL || 'https://meet.jitsi/';
 
@@ -56,15 +59,18 @@ const run = async () => {
             const onEndText = roomName ?
                 `${roomName} のミーティングが終了しました` :
                 `ミーティングが終了しました`;
-            await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText);
+
+            mMeetingSlackThread[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText)).ts;
         }
 
         if ( _isHeld === true ) {
+            const options = { "thread_ts" : mMeetingSlackThread[roomUrl] };
+
             for (const m of mMeetingMember[roomUrl]){
                 const exit = (member.indexOf(m) === -1);
                 if ( exit ) {
                     const onExitText = `${m} さんが退出しました`;
-                    await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onExitText);
+                    await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onExitText, options);
                 }
             }
 
@@ -72,7 +78,7 @@ const run = async () => {
                 const entry = (mMeetingMember[roomUrl].indexOf(m) === -1);
                 if ( entry ) {
                     const onEntryText = `${m} さんが参加しました`;
-                    await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onEntryText);
+                    await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onEntryText, options);
                 }
             }
 
