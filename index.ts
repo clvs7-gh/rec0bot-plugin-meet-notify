@@ -8,30 +8,32 @@ let mBot: BotProxy;
 let logger: Logger;
 let metadata: { [key: string]: string };
 
-const mMeetingStatus: { [url: string]: boolean } = {};
+const mMeetingStatuses: { [url: string]: boolean } = {};
 
-const mMeetingMember: { [url: string]: string[] } = {};
+const mMeetingMemberNames: { [url: string]: string[] } = {};
 
-const mMeetingSlackThread: { [url: string]: string } = {};
+const mMeetingSlackThreads: { [url: string]: string } = {};
 
 const NOTIFY_CHANNEL: string = process.env.REC0_ENV_MEET_NOTIFY_CHANNEL || 'meeting-notify';
 const ROOM_API_URLS: string[] =
     (process.env.REC0_ENV_MEET_NOTIFY_ROOM_API_URLS || 'https://meet.jitsi/room?room=example').split(',').map(v => v.trim());
 
-ROOM_API_URLS.forEach(v => mMeetingStatus[v] = false);
-ROOM_API_URLS.forEach(v => mMeetingMember[v] = []);
-ROOM_API_URLS.forEach(v => mMeetingSlackThread[v] = "");
+ROOM_API_URLS.forEach(v => {
+    mMeetingStatuses[v] = false;
+    mMeetingMemberNames[v] = [];
+    mMeetingSlackThreads[v] = "";
+});
 
 const REC0_ENV_MEET_NOTIFY_BASE_WEB_URL: string = process.env.REC0_ENV_MEET_NOTIFY_BASE_WEB_URL || 'https://meet.jitsi/';
 
 const checkRoom = async (apiUrl: string): Promise<[boolean, string[]]> => {
     const res = await fetch(apiUrl);
     if (res.ok) {
-        const member: string[] = [];
+        const memberNames: string[] = [];
         for (const v of (await res.json())){
-          member.push(v.display_name)
+          memberNames.push(v.display_name)
         }
-        return [true, member];
+        return [true, memberNames];
     }
 
     return [false, []];
@@ -40,17 +42,17 @@ const checkRoom = async (apiUrl: string): Promise<[boolean, string[]]> => {
 const run = async () => {
     for ( const roomUrl of ROOM_API_URLS ) {
         let _isHeld = false;
-        let member: string[];
+        let memberNames: string[];
         try {
-            [_isHeld, member] = await checkRoom(roomUrl);
+            [_isHeld, memberNames] = await checkRoom(roomUrl);
         } catch (e) {
             logger.warn('Failed to access room API: ', e);
             continue;
         }
 
-        if (_isHeld !== mMeetingStatus[roomUrl]) {
-            mMeetingStatus[roomUrl] = _isHeld;
-            const repName = member[0];
+        if (_isHeld !== mMeetingStatuses[roomUrl]) {
+            mMeetingStatuses[roomUrl] = _isHeld;
+            const repName = memberNames[0];
             const roomName = (new URL(roomUrl)).searchParams.get('room') || '';
             const webUrl = new URL(roomName, REC0_ENV_MEET_NOTIFY_BASE_WEB_URL);
             const onBeginText = roomName ?
@@ -60,29 +62,29 @@ const run = async () => {
                 `${roomName} のミーティングが終了しました` :
                 `ミーティングが終了しました`;
 
-            mMeetingSlackThread[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText)).ts;
+            mMeetingSlackThreads[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText)).ts;
         }
 
         if ( _isHeld === true ) {
-            const options = { "thread_ts" : mMeetingSlackThread[roomUrl] };
+            const options = { "thread_ts" : mMeetingSlackThreads[roomUrl] };
 
-            for (const m of mMeetingMember[roomUrl]){
-                const exit = (member.indexOf(m) === -1);
-                if ( exit ) {
+            for (const m of mMeetingMemberNames[roomUrl]){
+                const isExit = (memberNames.indexOf(m) === -1);
+                if ( isExit ) {
                     const onExitText = `${m} さんが退出しました`;
                     await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onExitText, options);
                 }
             }
 
-            for (const m of member){
-                const entry = (mMeetingMember[roomUrl].indexOf(m) === -1);
-                if ( entry ) {
+            for (const m of memberNames){
+                const isEntry = (mMeetingMemberNames[roomUrl].indexOf(m) === -1);
+                if ( isEntry ) {
                     const onEntryText = `${m} さんが参加しました`;
                     await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), onEntryText, options);
                 }
             }
 
-            mMeetingMember[roomUrl] = Array.from(member);
+            mMeetingMemberNames[roomUrl] = Array.from(memberNames);
         }
     }
 };
