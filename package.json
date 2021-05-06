@@ -1,6 +1,6 @@
 {
   "name": "meet-notify",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A Rec0-bot plugin which notify start/end of meeting on Jitsi Meet.",
   "filter_prefixes": [
     "sindoi"
