@@ -65,7 +65,7 @@ const run = async () => {
             mMeetingSlackThreads[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText)).ts;
         }
 
-        if ( _isHeld === true ) {
+        if ( _isHeld ) {
             const options = { "thread_ts" : mMeetingSlackThreads[roomUrl] };
 
             for (const m of mMeetingMemberNames[roomUrl]){
@@ -86,12 +86,7 @@ const run = async () => {
 
         }
 
-        if ( _isHeld === true ){
-          mMeetingMemberNames[roomUrl] = Array.from(memberNames);
-        } else {
-          mMeetingMemberNames[roomUrl] = [];
-        }
-
+        mMeetingMemberNames[roomUrl] = _isHeld ? Array.from(memberNames): [];
 
     }
 };
