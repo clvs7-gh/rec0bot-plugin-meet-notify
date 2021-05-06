@@ -84,8 +84,15 @@ const run = async () => {
                 }
             }
 
-            mMeetingMemberNames[roomUrl] = Array.from(memberNames);
         }
+
+        if ( _isHeld === true ){
+          mMeetingMemberNames[roomUrl] = Array.from(memberNames);
+        } else {
+          mMeetingMemberNames[roomUrl] = [];
+        }
+
+
     }
 };
 
