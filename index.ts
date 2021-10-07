@@ -56,13 +56,16 @@ const run = async () => {
             const roomName = (new URL(roomUrl)).searchParams.get('room') || '';
             const webUrl = new URL(roomName, REC0_ENV_MEET_NOTIFY_BASE_WEB_URL);
             const onBeginText = roomName ?
-                `${repName} さんが <${webUrl}|${roomName}> でミーティングを始めました！` :
-                `${repName} さんがミーティングを始めました！`;
+                `${repName} さんが <${webUrl}|${roomName}> でミーティングを始めました！
+ステレオでの参加は <${webUrl}#config.stereo=true|こちら>` :
+                `${repName} さんがミーティングを始めました！
+ステレオでの参加は <${webUrl}#config.stereo=true|こちら>`;
             const onEndText = roomName ?
                 `${roomName} のミーティングが終了しました` :
                 `ミーティングが終了しました`;
+            const options = {unfurl_links: false};
 
-            mMeetingSlackThreads[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText)).ts;
+            mMeetingSlackThreads[roomUrl] = (await mBot.sendTalk(await mBot.getChannelId(NOTIFY_CHANNEL), _isHeld ? onBeginText : onEndText, options)).ts;
         }
 
         if ( _isHeld ) {
