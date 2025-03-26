@@ -1,12 +1,10 @@
-import { Logger } from '@log4js-node/log4js-api';
-import fetch from 'node-fetch';
+import log4js from '@log4js-node/log4js-api';
 import * as path from 'path';
-import { BotProxy } from './bot-proxy.interface';
-import { MessageContext } from './message-context.interface';
+import type { BotProxy } from './bot-proxy.interface.ts';
+import type { MessageContext } from './message-context.interface.ts';
 let mBot: BotProxy;
 
-let logger: Logger;
-let metadata: { [key: string]: string };
+let logger: log4js.Logger;
 
 const mMeetingStatuses: { [url: string]: boolean } = {};
 
@@ -31,7 +29,7 @@ const checkRoom = async (apiUrl: string): Promise<[boolean, string[]]> => {
     if (res.ok) {
         const memberNames: string[] = [];
         for (const v of (await res.json())){
-          memberNames.push(v.display_name)
+          memberNames.push(v['display_name'])
         }
         return [true, memberNames];
     }
@@ -97,7 +95,7 @@ const run = async () => {
 export const init = async (bot: BotProxy, options: { [key: string]: any }): Promise<void> => {
     mBot = bot;
     logger = options.logger || console;
-    metadata = await import(path.resolve(__dirname, 'package.json'));
+    const { default: metadata } = await import(path.resolve(import.meta.dirname, 'package.json'), { with: { type: "json" } });
 
     logger.info(`${metadata.name} plugin v${metadata.version} has been initialized.`);
 };
